@@ -97,6 +97,19 @@ the CLI. [skills.sh ranks skills using anonymous installation telemetry](https:/
 Directory visibility may lag behind installation; GitHub-based installs work
 independently of listing availability.
 
+Telemetry is enabled by default in the installer; there is no repository-side
+telemetry setting or API key. Nonempty `DISABLE_TELEMETRY` or `DO_NOT_TRACK`
+environment variables disable it, including the value `0`. Respect these
+privacy settings: installation still works without telemetry.
+
+For maintainers, use a real installation from `ubranch/uzbekistan-payment-skills`
+to submit installation telemetry. Local-path installs and `--list` do not submit
+install events. Do not add artificial installation loops or CI jobs to raise counts.
+An HTTP 200 from the telemetry endpoint does not prove the directory has indexed
+the skills; check the listing links above separately.
+
+[Installer telemetry controls](https://github.com/vercel-labs/skills/blob/main/src/telemetry.ts)
+
 ## skills
 
 ### payme-integration
