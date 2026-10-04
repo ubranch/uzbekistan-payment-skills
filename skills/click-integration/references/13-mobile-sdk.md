@@ -1,10 +1,10 @@
 # Mobile SDK Integration (Мобильная интеграция)
 
-> Source: https://docs.click.uz/mobile-integration/
+> Source: https://docs.click.uz/additional/mobile — last verified 2026-10-05.
 
 ## Integration with Android and iOS Mobile Apps
 
-The Click mobile application on both platforms intercepts links (deeplinks) for payment. See https://docs.click.uz/click-button/ for how the payment link is created.
+The Click mobile application on both platforms intercepts links (deeplinks) for payment. See https://docs.click.uz/click-button for how the payment link is created.
 
 If the Click app is **not installed** on the user's phone, the system browser opens and the user can pay on the web page.
 

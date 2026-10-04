@@ -1,6 +1,6 @@
 # Fiscalization (Фискализация данных)
 
-> Source: https://docs.click.uz/fiscalization/
+> Source: https://docs.click.uz/merchant-api/fiscalization — last verified 2026-10-05.
 
 ## Overview
 
@@ -83,6 +83,8 @@ Auth: 123:356a192b7913b04c54574d18c28d46e6395428ab:1519051543
 | CommissionInfo | CommissionInfo | **Yes*** | Commission receipt information |
 
 Fields marked with * are mandatory.
+
+`VATPercent: 15` and the corresponding VAT amount in the request are **example data**, not a current universal tax default. Supply the applicable merchant/product VAT rate and calculated amount; do not mechanically replace all rates with 12% or infer provider rejection from a tax-rate change.
 
 ### CommissionInfo Object
 

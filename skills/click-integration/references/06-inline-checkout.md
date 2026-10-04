@@ -1,6 +1,6 @@
 # Inline Checkout — Pay by Card Without Redirect (Оплата по карте без перехода)
 
-> Source: https://docs.click.uz/click-pay-by-card/
+> Source: https://docs.click.uz/click-pay-by-card — last verified 2026-10-05.
 
 ## Overview
 

@@ -1,6 +1,6 @@
 # Payment Button — With Redirect (Кнопка оплаты — С переходом)
 
-> Source: https://docs.click.uz/click-button/
+> Source: https://docs.click.uz/click-button — last verified 2026-10-05.
 
 ## Overview
 
@@ -11,7 +11,7 @@ This page describes how to redirect users to the Click payment page at my.click.
 Create a button/link to the following address:
 
 ```
-https://my.click.uz/services/pay?service_id={service_id}&merchant_id={merchant_id}&amount={amount}&transaction_param={transaction_param}&return_url={return_url}&card_type={card_type}
+https://my.click.uz/services/pay/?service_id={service_id}&merchant_id={merchant_id}&amount={amount}&transaction_param={transaction_param}&return_url={return_url}&card_type={card_type}
 ```
 
 ### URL Parameters
@@ -29,7 +29,7 @@ https://my.click.uz/services/pay?service_id={service_id}&merchant_id={merchant_i
 ## Option 2 — Redirect by HTML Form
 
 ```html
-<form action="https://my.click.uz/services/pay" method="get" target="_blank">
+<form action="https://my.click.uz/services/pay/" method="get" target="_blank">
     <button type="submit" class="pay_with_click"><i></i>Pay with CLICK</button>
     <input type="hidden" name="merchant_id" value="{MERCHANT_ID}" />
     <input type="hidden" name="merchant_user_id" value="{MERCHANT_USER_ID}" />
@@ -56,7 +56,7 @@ $returnURL = "https://your-site.uz/payment/result";
 $cardType = "uzcard";
 
 $HTML = <<<CODE
-<form action="https://my.click.uz/services/pay" id="click_form" method="get" target="_blank">
+<form action="https://my.click.uz/services/pay/" id="click_form" method="get" target="_blank">
     <input type="hidden" name="amount" value="$transAmount" />
     <input type="hidden" name="merchant_id" value="$merchantID"/>
     <input type="hidden" name="merchant_user_id" value="$merchantUserID"/>
@@ -73,7 +73,7 @@ CODE;
 ### Final HTML Code Example
 
 ```html
-<form id="click_form" action="https://my.click.uz/services/pay" method="get" target="_blank">
+<form id="click_form" action="https://my.click.uz/services/pay/" method="get" target="_blank">
   <input type="hidden" name="amount" value="1000" />
   <input type="hidden" name="merchant_id" value="46"/>
   <input type="hidden" name="merchant_user_id" value="4"/>

@@ -1,6 +1,6 @@
 # Server Implementation Examples (Пример реализации)
 
-> Source: https://docs.click.uz/server-example/
+> Source: https://docs.click.uz/additional/example — last verified 2026-10-05.
 
 ## Official Click Repositories
 

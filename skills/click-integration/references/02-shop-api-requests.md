@@ -1,6 +1,6 @@
 # SHOP API — Requests (Prepare & Complete)
 
-> Source: https://docs.click.uz/click-api-request/
+> Source: https://docs.click.uz/shop-api/requests — last verified 2026-10-05.
 
 ## Description of Interaction
 
@@ -9,6 +9,8 @@ Interaction is via the API-interface on the supplier's server. API-interface sha
 Interaction is divided into two stages:
 1. **Prepare** (action=0)
 2. **Complete** (action=1)
+
+This is **standard SHOP**: form-urlencoded action 0 Prepare / action 1 Complete. Do not use its parser, action mapping, or signature formulas for [Advanced Shop](16-advanced-shop.md) or [Split Shop](17-split-shop.md), whose callbacks are JSON.
 
 ---
 
@@ -112,11 +114,27 @@ This request completes the on-line payment process. Upon receiving positive resp
 
 > **IMPORTANT**: If an error occurred in provision of services/sales after successful withdrawal of funds from card during execution of Complete, the vendor's billing responds to Complete "successfully" and sends a request for "cancellation of payment" (see Merchant API Payment_cancel / reversal).
 
+### Upstream Cancellation Contradiction
+
+The [live Postman table and generator](https://docs.click.uz/testing/postman) explicitly expect scenario 7's repeated successful confirmation to return `-4`, but scenario 8's `error=-5017` cancellation of the already confirmed payment to return `-9`. The [errors page](https://docs.click.uz/shop-api/errors) also says any negative CLICK error requires billing cancellation and `-9`. That leaves tension with the successful-debit prose above; it is not evidence that the example's ordering is a bug.
+
+The handler therefore deliberately checks a **provider-reported negative error before the paid-state check**. Preserve scenario 8; obtain Click's production clarification rather than speculatively reordering it. Merchant fulfillment failure after successful debit is separate and follows the success-plus-real-`payment/reversal` instruction, not a synthetic negative CLICK callback.
+
+## ID Precision
+
+`click_trans_id` and `click_paydoc_id` are documented as `bigint` (64-bit) here; the [errors page](https://docs.click.uz/shop-api/errors) still says `int` for the response ID. Keep the wider identity intact for signing, correlation, and storage. Form values arrive as strings: do not convert them before hashing or store a rounded JavaScript number.
+
+The Node.js example below **only supports digit-string IDs through `Number.MAX_SAFE_INTEGER` (9007199254740991)**. Its guarded conversion preserves JSON numeric response types in that range and refuses larger IDs before any billing mutation; this refusal is an example boundary, not a full-width protocol implementation or a new provider error code. Configure full-width handling before production if Click can send larger IDs.
+
+For the full range, retain decimal strings/native 64-bit integers in storage and use an exact JSON numeric-token serializer (or a backend with native 64-bit JSON support). Do not quote every documented numeric ID without agreement, pass native `BigInt` directly to `JSON.stringify`, or parse a large JSON number then convert the rounded value to `BigInt`. Advanced/Split callbacks require lossless JSON parsing at ingress too; a `JSON.parse` reviver cannot restore lost digits. No new dependency is prescribed.
+
 ---
 
 ## Implementation Examples
 
 ### Node.js / Express
+
+This illustrates signed callback validation and the successful atomic billing/fulfillment path using your existing `Order`/`Payment` models; it is not a complete recovery/reversal server. Once debit is reported, your business flow must deliver the order or acknowledge success and initiate a real reversal if delivery fails. Do not wrap fulfillment failure in an `error=-7` reply to a successful Complete.
 
 ```javascript
 const crypto = require('crypto');
@@ -129,6 +147,17 @@ app.use(express.urlencoded({ extended: true }));
 const CLICK_SECRET_KEY = process.env.CLICK_SECRET_KEY;
 const CLICK_SERVICE_ID = parseInt(process.env.CLICK_SERVICE_ID);
 
+function safeClickIdNumber(value) {
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    throw new RangeError('CLICK ID must be a decimal digit string');
+  }
+  const id = Number(value);
+  if (!Number.isSafeInteger(id)) {
+    throw new RangeError('CLICK ID exceeds this example’s safe-integer boundary');
+  }
+  return id;
+}
+
 app.post('/api/payment/click/callback', async (req, res) => {
   const {
     click_trans_id, service_id, click_paydoc_id,
@@ -136,6 +165,15 @@ app.post('/api/payment/click/callback', async (req, res) => {
     amount, action, error, error_note,
     sign_time, sign_string
   } = req.body;
+
+  // Bounded example: refuse unsupported IDs before signing/processing.
+  // Full-width production handling needs an exact numeric-token serializer.
+  try {
+    safeClickIdNumber(click_trans_id);
+    safeClickIdNumber(click_paydoc_id);
+  } catch (err) {
+    return res.status(400).send(err.message);
+  }
 
   const actionInt = parseInt(action);
 
@@ -156,7 +194,7 @@ app.post('/api/payment/click/callback', async (req, res) => {
   const expectedBuf = Buffer.from(expectedSign);
   if (signBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(signBuf, expectedBuf)) {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_prepare_id: 0,
       error: -1,
@@ -167,7 +205,7 @@ app.post('/api/payment/click/callback', async (req, res) => {
   // 2. Validate service_id
   if (parseInt(service_id) !== CLICK_SERVICE_ID) {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_prepare_id: 0,
       error: -8,
@@ -189,7 +227,7 @@ async function handlePrepare(params, res) {
   // Check if Click sent an error
   if (parseInt(clickError) < 0) {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_prepare_id: 0,
       error: -9,
@@ -201,7 +239,7 @@ async function handlePrepare(params, res) {
   const order = await Order.findById(merchant_trans_id);
   if (!order) {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_prepare_id: 0,
       error: -5,
@@ -212,7 +250,7 @@ async function handlePrepare(params, res) {
   // Verify amount
   if (Math.abs(parseFloat(amount) - order.amount) > 0.01) {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_prepare_id: 0,
       error: -2,
@@ -223,7 +261,7 @@ async function handlePrepare(params, res) {
   // Check if already paid
   if (order.status === 'paid') {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_prepare_id: 0,
       error: -4,
@@ -234,7 +272,7 @@ async function handlePrepare(params, res) {
   // Check if cancelled
   if (order.status === 'cancelled') {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_prepare_id: 0,
       error: -9,
@@ -244,15 +282,15 @@ async function handlePrepare(params, res) {
 
   // Create payment record (reserve the order)
   const payment = await Payment.create({
-    click_trans_id: parseInt(click_trans_id),
-    click_paydoc_id: parseInt(params.click_paydoc_id),
+    click_trans_id: safeClickIdNumber(click_trans_id),
+    click_paydoc_id: safeClickIdNumber(params.click_paydoc_id),
     merchant_trans_id,
     amount: parseFloat(amount),
     status: 'preparing'
   });
 
   return res.json({
-    click_trans_id: parseInt(click_trans_id),
+    click_trans_id: safeClickIdNumber(click_trans_id),
     merchant_trans_id,
     merchant_prepare_id: payment.id,
     error: 0,
@@ -270,7 +308,7 @@ async function handleComplete(params, res) {
   const payment = await Payment.findById(parseInt(merchant_prepare_id));
   if (!payment) {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_confirm_id: null,
       error: -6,
@@ -281,7 +319,7 @@ async function handleComplete(params, res) {
   // Verify merchant_prepare_id belongs to this merchant_trans_id
   if (payment.merchant_trans_id !== merchant_trans_id) {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_confirm_id: null,
       error: -6,
@@ -289,11 +327,12 @@ async function handleComplete(params, res) {
     });
   }
 
-  // If Click reports error — cancel
+  // Provider failure first: official Postman scenario 8 expects -9 even if paid.
+  // This precedence remains contradictory upstream; confirm it with Click.
   if (parseInt(clickError) < 0) {
     await payment.update({ status: 'cancelled' });
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_confirm_id: null,
       error: -9,
@@ -304,7 +343,7 @@ async function handleComplete(params, res) {
   // Check if already paid (idempotency)
   if (payment.status === 'paid') {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_confirm_id: payment.id,
       error: -4,
@@ -315,7 +354,7 @@ async function handleComplete(params, res) {
   // Check if previously cancelled
   if (payment.status === 'cancelled') {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_confirm_id: null,
       error: -9,
@@ -326,7 +365,7 @@ async function handleComplete(params, res) {
   // Verify amount
   if (Math.abs(parseFloat(amount) - payment.amount) > 0.01) {
     return res.json({
-      click_trans_id: parseInt(click_trans_id),
+      click_trans_id: safeClickIdNumber(click_trans_id),
       merchant_trans_id,
       merchant_confirm_id: null,
       error: -2,
@@ -334,30 +373,37 @@ async function handleComplete(params, res) {
     });
   }
 
-  // ATOMIC: Mark as paid + fulfill order
-  try {
-    await db.transaction(async (tx) => {
-      await payment.update({ status: 'paid', click_paydoc_id: parseInt(click_paydoc_id) }, { transaction: tx });
-      await fulfillOrder(merchant_trans_id, { transaction: tx });
-    });
-  } catch (err) {
-    return res.json({
-      click_trans_id: parseInt(click_trans_id),
-      merchant_trans_id,
-      merchant_confirm_id: null,
-      error: -7,
-      error_note: 'Failed to update user'
-    });
-  }
+  // Atomic success path. Post-debit delivery failure requires success + a real
+  // Merchant API reversal; the recovery path is part of your billing system.
+  await db.transaction(async (tx) => {
+    await payment.update({
+      status: 'paid',
+      click_paydoc_id: safeClickIdNumber(click_paydoc_id)
+    }, { transaction: tx });
+    await fulfillOrder(merchant_trans_id, { transaction: tx });
+  });
 
   return res.json({
-    click_trans_id: parseInt(click_trans_id),
+    click_trans_id: safeClickIdNumber(click_trans_id),
     merchant_trans_id,
     merchant_confirm_id: payment.id,
     error: 0,
     error_note: 'Success'
   });
 }
+```
+
+**Offline precision check:** run this with `safeClickIdNumber` from the example; it makes no requests or billing changes.
+
+```javascript
+const assert = require('node:assert/strict');
+assert.equal(safeClickIdNumber('9007199254740991'), Number.MAX_SAFE_INTEGER);
+assert.throws(() => safeClickIdNumber('9007199254740992'), RangeError);
+assert.throws(() => safeClickIdNumber('9007199254740993'), RangeError);
+assert.equal(
+  JSON.stringify({ click_trans_id: safeClickIdNumber('9007199254740991') }),
+  '{"click_trans_id":9007199254740991}'
+);
 ```
 
 ### Go

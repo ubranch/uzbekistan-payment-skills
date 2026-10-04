@@ -1,6 +1,6 @@
 # Telegram Bot Payments (Оплата через Telegram)
 
-> Source: https://docs.click.uz/telegram-payments/
+> Source: https://docs.click.uz/additional/telegram-payments — last verified 2026-10-05.
 
 ## 1. Create a New Bot
 

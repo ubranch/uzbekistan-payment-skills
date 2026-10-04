@@ -1,13 +1,13 @@
 <div align="center">
 
 <img src="./assets/readme/hero.svg" width="100%"
-     alt="uzbekistan payment skills: two agent skills for Payme and Click. The same 5 000 UZS charge is &quot;amount&quot;: 500000 in tiyin for Payme and amount=5000.00 in so'm for Click.">
+     alt="uzbekistan payment skills with official Payme and Click logos. The same 5 000 UZS charge is &quot;amount&quot;: 500000 in tiyin for Payme Merchant API and amount=5000.00 in so'm for Click SHOP API.">
 
 <p>
 <a href="https://skills.sh/ubranch/uzbekistan-payment-skills"><img src="https://skills.sh/b/ubranch/uzbekistan-payment-skills" alt="skills.sh installs"></a>
 <img src="https://img.shields.io/badge/claude_·_codex_·_cursor_·_gemini_·_copilot-1E1E22?style=flat-square" alt="Works with Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, and other agents">
 <img src="https://img.shields.io/badge/payme_·_click-1E1E22?style=flat-square" alt="Payme and Click">
-<img src="https://img.shields.io/badge/18_reference_files-1E1E22?style=flat-square" alt="18 reference files">
+<img src="https://img.shields.io/badge/20_reference_files-1E1E22?style=flat-square" alt="20 reference files">
 <img src="https://img.shields.io/badge/uz_·_ru_·_en-1E1E22?style=flat-square" alt="Triggers in Uzbek, Russian, and English">
 <a href="#install"><img src="https://img.shields.io/badge/install-F97316?style=flat-square&labelColor=1E1E22" alt="Install"></a>
 </p>
@@ -26,8 +26,7 @@ fiscalization.
 
 ## look
 
-The two providers solve the same problem in different ways. Most integration
-bugs come from these differences. Both skills state them explicitly:
+For Payme Merchant API and standard Click SHOP API, the key differences are:
 
 | | payme | click |
 | --- | --- | --- |
@@ -73,7 +72,7 @@ Claude Code, as a plugin marketplace:
 ```
 
 Already installed the old Claude plugins? Refresh the marketplace and update
-both plugins to `1.1.0`, then restart Claude Code to replace the old cached layout:
+both plugins to `1.2.0`, then restart Claude Code to load the updated skills:
 
 ```bash
 claude plugin marketplace update uzbekistan-payment-skills
@@ -128,7 +127,10 @@ to'lov tizimi, fiskalizatsiya, and IKPU codes.
 Loads for Click, `click.uz`, SHOP API, `click_trans_id`, `merchant_trans_id`,
 Click Pass, `checkout.js`, and Click error codes `-1` to `-9`.
 
-- **SHOP API**: Prepare and Complete, signature checks, errors, and testing.
+- **SHOP API**: Prepare and Complete, signature checks, errors, the web sandbox,
+  and the 15-scenario Postman collection.
+- **Advanced / Split Shop**: separate JSON protocols for account lookup,
+  reconciliation, and distributing payments between counterparties.
 - **Merchant API**: invoices, payment status, card tokens, and reversal.
 - **Checkout**: payment button, inline `checkout.js`, Click Pass (QR POS).
 - **Other**: fiscalization (OFD and IKPU), Telegram payments, the mobile SDK,
@@ -136,10 +138,20 @@ Click Pass, `checkout.js`, and Click error codes `-1` to `-9`.
 
 ## limits
 
-The skills hold documentation, not code that runs. They reflect the provider
-docs at the time of writing. Check `developer.help.paycom.uz` and `docs.click.uz`
-before you go to production.
+Official documentation checked **2026-10-05**:
+[Payme Business](https://developer.help.paycom.uz/) and [Click](https://docs.click.uz/).
+These are integration guides, not a payment SDK or an exhaustive documentation
+mirror. Check provider requirements before production. Known documentation
+conflicts—especially Click cancellation semantics—are called out in the skills
+rather than resolved by guessing.
+
+The banner uses logos from [Payme's official resources](https://developer.help.paycom.uz/resursy/)
+and [Click's official documentation](https://docs.click.uz/). This repository is
+independent and is not endorsed by either provider.
 
 ## license
 
 [MIT](./LICENSE)
+
+Payme and Click logos and trademarks remain the property of their respective
+owners; the repository's MIT license does not grant trademark rights.

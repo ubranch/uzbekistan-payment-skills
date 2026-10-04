@@ -1,5 +1,9 @@
 # Merchant API — Complete Method Reference
 
+Official sources checked **2026-10-05**: [Merchant methods](https://developer.help.paycom.uz/metody-merchant-api/) and [interaction scheme](https://developer.help.paycom.uz/protokol-merchant-api/skhema-vzaimodeystviya/). Examples are documentation, not tested live payments.
+
+**Provider URL caveat:** the live slugs are swapped: [`/checktransaction/`](https://developer.help.paycom.uz/metody-merchant-api/checktransaction/) renders **CheckPerformTransaction** (`amount` + `account` → `allow`); [`/checkperformtransaction/`](https://developer.help.paycom.uz/metody-merchant-api/checkperformtransaction/) renders **CheckTransaction** (`id` → transaction state/times). Match the page heading and JSON `method`; do not rename API methods to match these URLs.
+
 ## Method Index
 
 Merchant API has 6 mandatory methods + 1 optional:
@@ -18,6 +22,8 @@ Merchant API has 6 mandatory methods + 1 optional:
 
 Payme Business sends JSON-RPC 2.0 requests to your Endpoint URL via HTTP POST over TLS.
 Your server must always respond with HTTP status 200.
+
+Use HTTPS with modern TLS (1.2+); do not enable legacy TLS 1.0/1.1. The [interaction scheme](https://developer.help.paycom.uz/protokol-merchant-api/skhema-vzaimodeystviya/) recommends a 1 MB SSL session cache, session timeout of at least 10 minutes, and a 10-minute keepalive timeout. These are provider **recommendations**, not mandatory universal settings; tune them to the deployment's security and resource constraints.
 
 ### Request Format
 ```json
@@ -65,6 +71,8 @@ Authorization: Basic base64(login:password)
 
 Checks if payment is possible before creating a transaction.
 
+Source: [CheckPerformTransaction](https://developer.help.paycom.uz/metody-merchant-api/checktransaction/) (see URL caveat above).
+
 **When called:** Before any transaction — validates account and amount.
 
 ### Request
@@ -106,13 +114,13 @@ Checks if payment is possible before creating a transaction.
       "receipt_type": 0,
       "shipping": {
         "title": "Delivery to address",
-        "price": 500000
+        "price": 10000
       },
       "items": [
         {
           "discount": 10000,
           "title": "Product Name",
-          "price": 505000,
+          "price": 250000,
           "count": 2,
           "code": "00702001001000001",
           "units": 241092,
@@ -124,6 +132,8 @@ Checks if payment is possible before creating a transaction.
   }
 }
 ```
+
+`vat_percent: 15` and product/package codes are illustrative provider sample data, not a current tax-rate default. Use the actual applicable merchant/product VAT rate and codes. This example's prices are balanced to the request's 500000 tiyin: `250000 × 2 − 10000 + 10000`.
 
 ### Errors
 | Code | When |
@@ -227,6 +237,8 @@ Completes the transaction — credits funds and marks order as paid.
 
 **When called:** After successful debit from customer's card.
 
+Source: [PerformTransaction](https://developer.help.paycom.uz/metody-merchant-api/performtransaction/).
+
 ### Request
 ```json
 {
@@ -253,6 +265,7 @@ Completes the transaction — credits funds and marks order as paid.
 |------|------|
 | -31003 | Transaction not found |
 | -31008 | Cannot perform (wrong state — not state 1) |
+| -31050 to -31099 | Invalid account field. Localized `message` (`ru`, `uz`, `en`) is required; `data` must contain the account subfield name (for example `"order_id"`, not the full account object) |
 
 ### Implementation Checklist
 - [ ] Find transaction by Payme `id`
@@ -313,6 +326,8 @@ State logic:
 ## Method 5: CheckTransaction
 
 Returns current state of a transaction.
+
+Source: [CheckTransaction](https://developer.help.paycom.uz/metody-merchant-api/checkperformtransaction/) (see URL caveat above).
 
 ### Request
 ```json

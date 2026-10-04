@@ -1,5 +1,7 @@
 # Subscribe API — Complete Method Reference
 
+Official documentation checked **2026-10-05**. Sources for the consolidated methods: [cards.remove](https://developer.help.paycom.uz/metody-subscribe-api/cards.remove/), [receipts.send](https://developer.help.paycom.uz/metody-subscribe-api/receipts.send/), [receipts.check](https://developer.help.paycom.uz/metody-subscribe-api/receipts.check/), and [receipt states](https://developer.help.paycom.uz/metody-subscribe-api/sostoyaniya-cheka/). No live payments were tested.
+
 ## Method Index
 
 Subscribe API methods are independent and work separately. They are divided by where they run:
@@ -225,34 +227,6 @@ Returns card object with `number`, `expire`, `token`, `recurrent`, `verify`.
 
 ---
 
-### cards.remove — Delete Card Token
-
-**Side:** Backend (X-Auth with key)
-
-#### Request
-```json
-{
-  "id": 123,
-  "method": "cards.remove",
-  "params": {
-    "token": "NTg1Yjc4OWMy..."
-  }
-}
-```
-
-#### Response
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 123,
-  "result": {
-    "success": true
-  }
-}
-```
-
----
-
 ## RECEIPT METHODS
 
 All receipt methods use **Backend** auth (X-Auth with key).
@@ -265,7 +239,7 @@ All receipt methods use **Backend** auth (X-Auth with key).
   "id": 4,
   "method": "receipts.create",
   "params": {
-    "amount": 500000,
+    "amount": 1510000,
     "account": {
       "order_id": "test"
     },
@@ -291,6 +265,8 @@ All receipt methods use **Backend** auth (X-Auth with key).
   }
 }
 ```
+
+`vat_percent: 15` and product/package codes are example data, not a current VAT default. Supply the actual applicable merchant/product values. This example totals 1510000 tiyin: `505000 × 2 + 500000`. [receipts.create](https://developer.help.paycom.uz/metody-subscribe-api/receipts.create/) makes `detail` optional, but its fiscal detail table requires `receipt_type`, `items`, and the listed required item fields; an inline comment inconsistently calls `items` optional. Confirm the kassa's fiscalization setup rather than treating optional `detail` as permission to omit required fiscal data.
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -347,24 +323,6 @@ Returns receipt object with `state: 4` (paid), `pay_time` populated.
 
 ### receipts.send — Send Invoice via SMS
 
-#### Request
-```json
-{
-  "id": 123,
-  "method": "receipts.send",
-  "params": {
-    "id": "62da73b0803aced907a52b46",
-    "phone": "998901234567"
-  }
-}
-```
-
-Sends payment link via SMS to the specified phone number.
-
----
-
-### receipts.send — Send Invoice via SMS
-
 Sends payment link via SMS to the specified phone number.
 
 #### Request
@@ -411,21 +369,6 @@ Sends payment link via SMS to the specified phone number.
 
 #### Response
 Returns receipt with `state: 21` (queued for cancellation).
-
----
-
-### receipts.check — Check Receipt Status
-
-#### Request
-```json
-{
-  "id": 123,
-  "method": "receipts.check",
-  "params": {
-    "id": "62da73b0803aced907a52b46"
-  }
-}
-```
 
 ---
 
@@ -620,11 +563,13 @@ Use standard `receipts.cancel` method.
 | 3 | Closing transaction in merchant billing |
 | 4 | Paid successfully |
 | 5 | Held (authorized, awaiting capture) |
-| 6 | Hold command received, transitioning to state 5. If stuck — contact Payme support |
+| 6 | Hold command received; contact Payme support if this state persists |
 | 20 | Paused for manual intervention |
 | 21 | Queued for cancellation |
 | 30 | Queued for closing transaction in merchant billing |
 | 50 | Cancelled |
+
+Only state `4` confirms payment. Held, in-progress and queued states (`5`, `6`, `21`, `30`, etc.) are not successful completion.
 
 ---
 
@@ -664,4 +609,4 @@ Use standard `receipts.cancel` method.
 - Test cabinet login: your phone number
 - Test cabinet password: `qwerty`
 - Test SMS code: `666666`
-- See main SKILL.md for test card numbers
+- See [SKILL.md](../SKILL.md#test-cards-subscribe-api) for test card numbers

@@ -1,6 +1,6 @@
 # Merchant API — Error Codes (Ошибки)
 
-> Source: https://docs.click.uz/merchant-api-error/
+> Source: https://docs.click.uz/merchant-api/errors — last verified 2026-10-05.
 
 ## HTTP Status Codes
 

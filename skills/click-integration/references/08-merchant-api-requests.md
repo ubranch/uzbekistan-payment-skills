@@ -1,6 +1,6 @@
 # Merchant API — Requests (Запросы)
 
-> Source: https://docs.click.uz/merchant-api-request/
+> Source: https://docs.click.uz/merchant-api/requests — last verified 2026-10-05.
 
 ## Connection and Making Requests
 
@@ -30,13 +30,15 @@ Auth: merchant_user_id:digest:timestamp
 - **digest** = `SHA1(timestamp + secret_key)`
 - **timestamp** = UNIX timestamp (10-digit seconds from epoch start)
 
-### Required Headers
+### General Authentication Headers
 
 ```
 Accept: application/json
 Auth: {merchant_user_id}:{digest}:{timestamp}
 Content-Type: application/json
 ```
+
+The official `card_token/request` example omits `Auth`, unlike token verify/payment/delete. That omission does **not** establish that authentication is forbidden or that an added header causes a 401/CORS error. The general authenticated pattern is retained here; confirm this endpoint's requirement with Click before changing it. Keep `secret_key` and digest generation on the backend.
 
 ### Supported Content Types
 
@@ -204,11 +206,13 @@ Auth: 123:356a192b7913b04c54574d18c28d46e6395428ab:1519051543
 ### Request
 
 ```http
-GET https://api.click.uz/v2/merchant/payment/status_by_mti/:service_id/:merchant_trans_id/:YYYY-MM-DD HTTP/1.1
+GET https://api.click.uz/v2/merchant/payment/status_by_mti/{service_id}/{merchant_trans_id}/{YYYY-MM-DD} HTTP/1.1
 Accept: application/json
 Content-Type: application/json
 Auth: 123:356a192b7913b04c54574d18c28d46e6395428ab:1519051543
 ```
+
+Braces denote substituted path values. The older `:YYYY-MM-DD` notation was also a placeholder, not evidence of a broken runtime endpoint.
 
 ### Request Parameters
 
@@ -289,6 +293,8 @@ Auth: 123:356a192b7913b04c54574d18c28d46e6395428ab:1519051543
 ## 6. Create Card Token (Создание токена карты)
 
 ### Request
+
+**Authentication ambiguity:** The current official sample lists `Accept` and `Content-Type` but no `Auth`; verify, payment, and delete samples include it. The authenticated backend example below follows the general Merchant API rule, not a verified endpoint-specific requirement. Do not expose the secret to a frontend or remove authentication on the strength of an omitted sample header.
 
 ```http
 POST https://api.click.uz/v2/merchant/card_token/request HTTP/1.1
@@ -464,7 +470,9 @@ Auth: 123:356a192b7913b04c54574d18c28d46e6395428ab:1519051543
 
 ---
 
-## Full Merchant API Client (Node.js)
+## Merchant API Client Example (Node.js)
+
+This selective client uses the general `Auth` header, including the unresolved `card_token/request` case above. Its `res.json()` parsing is suitable only when returned integer IDs fit `Number.MAX_SAFE_INTEGER`; `payment_id` is documented as `bigint`. A full-width deployment needs lossless JSON parsing before conversion, exact string/64-bit storage, and numeric-token serialization where Click specifies JSON numbers. A reviver cannot recover an ID already rounded by `JSON.parse`, and native `BigInt` cannot be passed directly to `JSON.stringify`.
 
 ```javascript
 const crypto = require('crypto');

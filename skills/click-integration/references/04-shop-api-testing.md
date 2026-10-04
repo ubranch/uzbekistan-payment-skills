@@ -1,58 +1,58 @@
-# SHOP API — Testing (Тестирование)
+# Standard SHOP API — Playground and Postman Testing
 
-> Source: https://docs.click.uz/click-api-testing/
+> Sources: [browser Playground](https://docs.click.uz/testing/playground), [Postman generator](https://docs.click.uz/testing/postman) — last verified 2026-10-05.
+> Exact official SPA source: [Playground module](https://docs.click.uz/assets/js/c9a82400.4e12ebbc.js), [Postman page and generator](https://docs.click.uz/assets/js/a1331985.5159e565.js). Direct deep-route HTML fetches may return the homepage; these modules identify the actual testing routes.
 
-## Testing and Debugging API-Interface
+These tools simulate **standard SHOP** form-urlencoded Prepare (`action=0`) and Complete (`action=1`) against **your endpoint**. They do not establish that a real card was debited and do not test the JSON Advanced/Split protocols. Use isolated test billing/orders: a simulated Complete can still trigger your own fulfillment code. No real small-value payment is needed for these checks.
 
-For testing and debugging the API-interface during development, use this software:
-**Download**: https://docs.click.uz/wp-content/uploads/2018/05/NEW-CLICK_API.zip
+## Browser Playground
 
-This software (PO) emulates the actions of the CLICK system. The supplier configures the software and tests step-by-step using pre-loaded scenarios.
+1. Open the official Playground. Set the test service ID, test secret, Prepare URL, and Complete URL. Never use production credentials for an exploratory test.
+2. Set an amount in so'm and test `click_trans_id`/`click_paydoc_id`. The current UI generates a read-only `merchant_trans_id` with a regenerate control; arrange matching isolated billing data before running a success case.
+3. Press **Prepare** and inspect the displayed form body, HTTP status, and JSON response. The UI saves the returned `merchant_prepare_id` for Complete.
+4. Press **Complete**, or use **Prepare → Complete** for the two-step flow. The flow control checks for a returned prepare ID; it is not proof of actual settlement or business correctness.
+5. Exercise duplicate/cancellation states deliberately and compare both the response and the test billing ledger. Test IDs must stay within JavaScript's safe-integer range when using the UI's ordinary JSON response parser.
 
-> **NOTE**: This testing software is from 2018 and may not work on modern Windows systems. Alternative approach: perform a real small-amount test payment (minimum 500 so'm) against your production-ready endpoint.
+### CORS and request direction
 
-## Testing Software Field Descriptions
+The source executes browser `fetch(merchantUrl, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body})`. Requests go **directly from the browser to your server**, not through a Click sandbox proxy. The secret signs the request in the browser; do not share it in screenshots, logs, exported collections, or frontend application code.
 
-| # | Parameter | Type | Description |
-|---|-----------|------|-------------|
-| 1 | Prepare URL | varchar | Link to API-interface handler for Prepare request |
-| 2 | Complete URL | varchar | Link to API-interface handler for Complete request |
-| 3 | service_id | int | Service ID obtained during registration in CLICK system |
-| 4 | merchant_user_id | int | User ID obtained during registration in CLICK system |
-| 5 | secret_key | varchar | Secret key for signature formation, obtained during registration |
-| 6 | merchant_trans_id | varchar | Payment ID of online store systems (your test order ID) |
-| 7 | prepare/confirm_id | read only | Filled in automatically when running the script |
+For a dedicated test endpoint, narrowly allow the official `https://docs.click.uz` origin and needed methods/headers, handling OPTIONS if your deployment requires it. Do **not** disable CORS or add wildcard permissions in production. The official page mentions an Allow CORS extension; that is not production hardening. Use Postman when browser origin/private-network restrictions prevent a local endpoint test. Real Click server-to-server callbacks are not authenticated by CORS; signature verification remains necessary.
 
-## Testing Procedure
+## Postman Collection: Setup and State
 
-1. Fill in all data fields listed above
-2. Select a scenario from the dropdown menu
-3. Click **"Начать тест" (Start Test)**
-4. Description of each scenario is shown in the "Описание сценариев" (Scripts Description) table
-5. Certain scenarios may automatically transition to the next scenario after successful completion
-6. Each test runs with detailed description of passed parameters and received answer in the **"Лог тестирования" (Test Log)** window
-7. In this window you can see request/response and analyze identified errors
-8. If scenario passes: "Выполнено" (Completed) status in the scripts table
-9. **ALL scenarios must pass successfully**
-10. After passing all tests, click **"Сформировать отчет" (Generate Report)**
+1. Open the generator and fill `service_id`, test `secret_key`, `click_trans_id`, `click_paydoc_id`, `amount`, `merchant_trans_id`, `sign_time`, Prepare URL, and Complete URL. Choose an existing unpaid test order and an amount **other than 300**; scenario 5 forces 300 to test mismatch. The form initializes the date/time; verify it against the signed value you send.
+2. Generate/download the collection JSON and import it through **File → Import** in Postman. Inspect **Edit → Variables**. The collection contains secrets; keep it out of version control and public workspaces.
+3. Run scenarios 1–3 in order with the intended fixtures. For scenario 2, set a nonexistent test account/order; restore an existing unpaid one before scenario 3. After scenario 3, manually copy the returned `merchant_prepare_id` into collection variables. Complete signatures are recomputed by per-request CryptoJS.MD5 pre-request scripts.
+4. Run 4–8 against that prepared payment. Before scenario 9, create/select a fresh unpaid test payment and use fresh transaction IDs as needed by your billing model. Copy scenario 9's prepare ID; scenario 10 overrides it with `999999999`; restore the valid ID for scenario 11. Before scenario 12, select another fresh unpaid fixture and copy its prepare ID for 13–15.
+5. Compare response bodies and billing effects with the matrix below. Do not blindly **Run Collection** before populating the state-dependent IDs. The generator reuses collection variables; it does not create your merchant's orders or automatically reset paid/cancelled billing state between groups.
 
-## Report Generation
+The official table/prose calls its expectation `error_code`, but standard SHOP response bodies use **`error`**, as shown by the official JSON example. Do not switch your callback to the Merchant API `error_code` envelope. Return the standard Prepare/Complete identifiers and response fields from [the request guide](02-shop-api-requests.md).
 
-Clicking "Generate Report" initiates:
-1. Data reconciliation procedure
-2. Sends all necessary parameters to the CLICK registration server
-3. Requires internet access
-4. Success message: **"Статус регистрации отчета: Регистрация успешно завершена!"** ("Registration Status report: Registration completed successfully!")
+## Exact 15-Scenario Matrix
 
-This means your data was successfully added to CLICK.
+| # | Request / action | Expected response `error` | Input/state under test |
+|---|---|---|---|
+| 1 | Prepare / 0 | -1 | Incorrect signature |
+| 2 | Prepare / 0 | -5 | User/order not found |
+| 3 | Prepare / 0 | 0 | Valid unpaid order; save `merchant_prepare_id` |
+| 4 | Complete / 1 | -1 | Incorrect signature |
+| 5 | Complete / 1 | -2 | Incorrect amount, forced `amount=300` |
+| 6 | Complete / 1 | 0 | Successful confirmation of scenario 3 payment |
+| 7 | Complete / 1 | -4 | Repeat successful confirmation of scenario 6 payment (`error=0`) |
+| 8 | Complete / 1 | -9 | Cancel the already confirmed payment, forced CLICK `error=-5017` |
+| 9 | Prepare / 0 | 0 | New preparation for prepare-ID validation; save its prepare ID |
+| 10 | Complete / 1 | -6 | Nonexistent `merchant_prepare_id=999999999` |
+| 11 | Complete / 1 | 0 | Valid prepare ID from scenario 9 |
+| 12 | Prepare / 0 | 0 | New preparation for cancellation; save its prepare ID |
+| 13 | Complete / 1 | -9 | Cancel payment, forced CLICK `error=-5017` |
+| 14 | Complete / 1 | -9 | Repeat cancellation, forced CLICK `error=-5017` |
+| 15 | Complete / 1 | -9 | Successful-confirmation request (`error=0`) for the previously cancelled payment |
 
-## Verification
+## Cancellation Ambiguity: Preserve Scenario 8
 
-Successful data addition can be verified through: **http://merchant.click.uz**
+Both the rendered official table and its generator specify scenario 8's `-9`, distinct from scenario 7's duplicate-confirmation `-4`. The [errors page](https://docs.click.uz/shop-api/errors) also requires cancellation and `-9` for a negative CLICK error. The [requests prose](https://docs.click.uz/shop-api/requests), however, says successful Prepare/debit should not receive an error except duplicate confirmation (`-4`) or confirmation of a previously cancelled payment (`-9`). This leaves cancellation after success contradictory upstream.
 
-## Important Notes
+The [example handler](02-shop-api-requests.md) deliberately checks a negative CLICK error before its paid-state check to match scenario 8. Do not reorder it on an assumption that cancellation of a paid transaction must always return `-4`. Obtain Click's production clarification for this case. A **merchant fulfillment failure after debit** is different: the prose requires a success acknowledgement followed by real Merchant API `payment/reversal`, not an invented provider-failure callback.
 
-- The URL specified in the program must be accessible to the testing software (can be on a local computer — localhost is OK for testing software, but NOT for real Click system)
-- For production: URLs must be publicly accessible HTTPS endpoints
-- If you can't use the testing software, do a real small-amount payment test (minimum 500 so'm)
-- Request service activation from Click support BEFORE attempting real payments
+Passing these request simulations does not activate a service, register a legacy software report, or prove real settlement. Coordinate production activation with Click separately.

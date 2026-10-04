@@ -1,6 +1,6 @@
 # CLICK Pass — QR-Code POS Payments
 
-> Source: https://docs.click.uz/click-pass/
+> Source: https://docs.click.uz/merchant-api/click-pass — last verified 2026-10-05.
 
 ## Overview
 

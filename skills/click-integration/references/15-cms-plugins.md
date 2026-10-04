@@ -1,6 +1,6 @@
 # CMS Plugins (Плагины для CMS)
 
-> Source: https://docs.click.uz/plugins-for-cms/
+> Source: https://docs.click.uz/additional/cms — last verified 2026-10-05.
 
 ## Available Plugins
 

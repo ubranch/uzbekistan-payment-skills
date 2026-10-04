@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "agent skills for payme and click payment integration in uzbekistan",
-    "version": "2.1.0"
+    "version": "2.2.0"
   },
   "plugins": [
     {
@@ -14,7 +14,7 @@
       "source": "./",
       "strict": false,
       "description": "expert-level payme payment system integration skill for uzbekistan's payme business platform",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "skills": ["./skills/payme-integration"]
     },
     {
@@ -22,7 +22,7 @@
       "source": "./",
       "strict": false,
       "description": "expert-level click payment integration skill for uzbekistan's click superapp",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "skills": ["./skills/click-integration"]
     }
   ]

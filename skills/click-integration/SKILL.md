@@ -6,8 +6,8 @@ description: >
   Click integratsiya, Click callback, prepare/complete, click_trans_id, merchant_trans_id,
   Click fiscalization, Click button, Click invoice, card token, Click Pass, checkout.js,
   createPaymentRequest, Click Telegram, mobile SDK, merchant.click.uz, my.click.uz,
-  api.click.uz, or Click error codes (-1 to -9). Covers SHOP API (Prepare/Complete),
-  Merchant API (invoices, payments, tokens, reversal), payment button, inline checkout,
+  api.click.uz, or Click error codes (-1 to -9). Covers standard SHOP (Prepare/Complete),
+  Advanced/Split JSON SHOP, Merchant API (invoices, payments, tokens, reversal), payment button, inline checkout,
   CLICK Pass (QR POS), fiscalization (OFD/IKPU), Telegram bot payments, mobile SDK,
   CMS plugins (WooCommerce, OpenCart, 1C-Bitrix), testing, and deployment.
   Trigger for partial mentions like "click", "shop api", "click payment", "click pass",
@@ -16,21 +16,22 @@ description: >
 
 # Click Payment Integration — Expert Guide
 
-This skill makes you a **super-expert** on Click payment system integration in Uzbekistan. Every page from docs.click.uz is captured in the reference files below — nothing is cut or summarized.
+Use this guide to select and implement Click payment integrations in Uzbekistan. The references are practical, selective guides to official documentation, not a complete verbatim mirror. Source routes and protocol findings were last verified on 2026-10-05; unresolved upstream ambiguities are called out explicitly.
 
 ## Quick Reference
 
 | Item | Value |
 |------|-------|
-| Payment page URL | `https://my.click.uz/services/pay` |
+| Payment page URL | `https://my.click.uz/services/pay/` |
 | Merchant API endpoint | `https://api.click.uz/v2/merchant/` |
 | Merchant cabinet | `https://merchant.click.uz` |
 | Documentation | `https://docs.click.uz` |
-| SHOP API Protocol | HTTP/HTTPS POST, `application/x-www-form-urlencoded` |
+| Standard SHOP API Protocol | HTTP/HTTPS POST, `application/x-www-form-urlencoded` |
+| Advanced / Split Shop Protocol | Separate JSON callbacks, `application/json; charset=utf-8` |
 | Merchant API Protocol | HTTPS, `application/json` (also supports `application/xml`) |
-| Currency | UZS, amounts in **so'm** (NOT tiyin — unlike Payme!) |
+| Currency | UZS: SHOP/Merchant/checkout amounts in **so'm**; fiscalization and Telegram use **tiyin** |
 | Amount format | float with 2 decimal places (e.g., `1000.00`) |
-| SHOP API auth | MD5 sign_string hash |
+| SHOP auth | MD5 `sign_string`; standard and JSON variants have different formulas; lookup/reconciliation omissions need clarification |
 | Merchant API auth | SHA1 digest in `Auth` header |
 | Checkout.js CDN | `https://my.click.uz/pay/checkout.js` |
 | Android SDK | `https://github.com/click-llc/android-msdk` |
@@ -39,10 +40,16 @@ This skill makes you a **super-expert** on Click payment system integration in U
 
 Click offers **multiple** ways to accept payments. Read the appropriate reference file for full details.
 
-### 1. SHOP API — "Click calls YOUR server" (most common)
-- User pays via Click → Click sends Prepare/Complete to your server
-- You implement 1 callback endpoint handling 2 actions
+### 1. Standard SHOP API — "Click calls YOUR server" (most common)
+- User pays via Click → Click sends form-urlencoded Prepare (`action=0`) / Complete (`action=1`)
+- Implement the configured callback URLs; one endpoint can handle both standard actions
 - **Read**: `references/02-shop-api-requests.md`
+
+### JSON SHOP variants — Choose only the enabled service contract
+- **Advanced Shop**: optional Getinfo 0, Prepare 1, Complete 2, Check 3, Compare 4; account/order fields are in `params`
+- **Split Shop**: optional Getinfo 0, Prepare 1, Confirm 2; Prepare returns `split: [{cntrg_id, amount}]`, with allocations summing to the payment total
+- These are not standard SHOP with extra fields: encoding, action numbers, payment identity, and signatures differ
+- **Read**: `references/16-advanced-shop.md` or `references/17-split-shop.md`
 
 ### 2. Payment Button/Link — "Redirect user to Click"
 - Simple link/form redirects user to my.click.uz payment page
@@ -79,13 +86,15 @@ Click offers **multiple** ways to accept payments. Read the appropriate referenc
 |--------|--------------|-----------------|----------|
 | SHOP API + Payment Button | User clicks link | Click web/app | E-commerce, web |
 | SHOP API + Inline Checkout | User on your site | Overlay on your site | SPA, custom UX |
+| Advanced Shop JSON | Click calls your billing | Configured Click payment flow | Prepayment account lookup, outcome check, reconciliation |
+| Split Shop JSON | Click calls your billing | Configured Click payment flow | Allocation to registered counterparties in Prepare |
 | Merchant API Invoice | Merchant sends invoice | User confirms in Click app | Subscriptions, push billing |
 | Merchant API Card Token | Merchant charges token | No user interaction | Recurring, card-on-file |
 | CLICK Pass | Merchant scans QR | Already in Click app | Physical retail, POS |
 | Telegram Payments | User in Telegram | Telegram payment UI | Telegram bots |
 | Mobile SDK / Deep Link | User in your app | Click app or browser | Mobile apps |
 
-## Sign String Formulas (SHOP API)
+## Sign String Formulas (Standard SHOP API Only)
 
 | Request | Formula |
 |---------|---------|
@@ -94,6 +103,8 @@ Click offers **multiple** ways to accept payments. Read the appropriate referenc
 
 **CRITICAL**: Parameters concatenated WITHOUT separators. Use constant-time comparison (e.g., `crypto.timingSafeEqual`).
 
+Advanced/Split Shop instead sign `MD5(click_paydoc_id + attempt_trans_id + service_id + SECRET_KEY + params-values-in-original-order + action + sign_time)`. `params` means concatenated values in transmitted order, **not** JSON serialization. Their docs omit signing fields on Getinfo/Compare; confirm the access/authentication contract instead of inventing one.
+
 ## Merchant API Authentication
 
 ```
@@ -101,6 +112,8 @@ Auth: {merchant_user_id}:{digest}:{timestamp}
 ```
 - `digest` = `SHA1(timestamp + secret_key)`
 - `timestamp` = UNIX timestamp (10-digit seconds)
+
+The official `card_token/request` sample omits `Auth`, unlike verify/payment/delete. This does not prove the header is forbidden or causes 401/CORS errors. Keep secrets server-side and confirm the endpoint-specific requirement with Click; the client example retains the general authenticated pattern.
 
 ## Error Codes Summary (SHOP API)
 
@@ -143,18 +156,20 @@ Auth: {merchant_user_id}:{digest}:{timestamp}
 
 ## Critical Implementation Rules
 
-1. **Single callback endpoint** — one URL for both Prepare (action=0) and Complete (action=1)
-2. **Content-Type is form-urlencoded** — SHOP API sends `application/x-www-form-urlencoded`, NOT JSON
-3. **Amounts in SO'M** — NOT tiyin! Float format: `50000.00`
-4. **Always verify sign_string** with constant-time comparison
-5. **Check `error` field in requests** — if Click sends error ≤ -1, respond with error -9
-6. **Protect against duplicate click_trans_id** processing
-7. **Verify merchant_prepare_id** in Complete matches Prepare record
-8. **Complete error=0 → fulfill order; error<0 → cancel order**
+1. **Select the protocol first** — standard SHOP uses Prepare 0 / Complete 1; JSON Advanced/Split uses lookup 0 / Prepare 1 / completion 2
+2. **Use the matching request encoding** — form-urlencoded for standard SHOP, JSON for Advanced/Split
+3. **Amounts in SO'M for SHOP/Merchant/checkout** — fiscalization and Telegram instead use tiyin
+4. **Verify each documented signature** with constant-time comparison; clarify authentication for JSON Getinfo/Compare, whose samples omit signing fields
+5. **Standard SHOP: check request `error`** — a negative CLICK error expects -9, subject to the paid-cancellation ambiguity below
+6. **Prevent duplicate billing/fulfillment** — standard SHOP uses `click_trans_id`; Split tracks `click_paydoc_id` + `attempt_trans_id` and phase/state
+7. **Correlate the prepared billing record** in standard Complete and JSON Complete/Confirm/Check
+8. **Standard Complete error=0 → paid outcome; error<0 → cancellation** — preserve scenario 8 and the upstream ambiguity described below
 9. **Fiscalization mandatory** for more than 1 IKPU code
 10. **Service must be activated** by Click support before real payments
 11. **IP must be static** — notify Click before any change
 12. **Log click_paydoc_id** — shown in user's SMS, needed for support queries
+13. **Preserve ID precision** — standard/Split CLICK IDs are documented as 64-bit; do not use unchecked JavaScript `parseInt` or ordinary JSON parsing for full-width IDs
+14. **Test standard SHOP without real charges** — current browser Playground and 15-scenario Postman generator are in `references/04-shop-api-testing.md`; neither verifies Advanced/Split
 
 ## Common Gotchas
 
@@ -163,18 +178,18 @@ Auth: {merchant_user_id}:{digest}:{timestamp}
 - **sign_string concatenation** — NO separators between params
 - **merchant_prepare_id overflow** — use proper integer, `Date.now() % 2147483647` causes collisions
 - **Response must always be JSON** with all required fields, even on error
-- **After successful Complete (error=0)** — response CANNOT be error (except -4 or -9)
-- **If fulfillment fails after successful Complete** — respond success, then cancel via Merchant API reversal
+- **Standard Complete cancellation is contradictory upstream** — Postman scenario 7 repeats a confirmed payment with `error=0` and expects `-4`; scenario 8 cancels it with `error=-5017` and expects `-9`. The errors page agrees with negative-error cancellation; requests prose leaves tension after successful debit. Do not reorder the example's cancellation-before-paid check speculatively; obtain Click's production clarification.
+- **Merchant fulfillment failure after successful debit is separate** — requests prose requires success acknowledgement, then real Merchant API `payment/reversal`, not a fabricated negative CLICK error.
 
-## Reference Files — Complete docs.click.uz Mirror
+## Reference Files — Practical Official-Documentation Guides
 
-Each file corresponds 1:1 to a docs.click.uz page. Nothing is cut.
+These guides preserve documented distinctions and flag source inconsistencies. Follow their canonical source links for the current enabled-service contract.
 
 ### SHOP API
 - `references/01-shop-api-overview.md` — General provisions, terms, flow diagram
 - `references/02-shop-api-requests.md` — Prepare & Complete full spec with code examples
 - `references/03-shop-api-errors.md` — All error codes (Click-side and merchant-side)
-- `references/04-shop-api-testing.md` — Testing software, scenarios, report generation
+- `references/04-shop-api-testing.md` — Browser Playground, Postman generator, exact 15-scenario matrix
 
 ### Payment Integration
 - `references/05-payment-button.md` — Payment link URL and HTML form (with redirect)
@@ -192,3 +207,5 @@ Each file corresponds 1:1 to a docs.click.uz page. Nothing is cut.
 - `references/13-mobile-sdk.md` — Android SDK, iOS deep links, return_url handling
 - `references/14-server-examples.md` — Official PHP, Django repos + community Node.js/TypeScript
 - `references/15-cms-plugins.md` — WooCommerce, OpenCart, Drupal, 1C-Bitrix, Joomla, CS-Cart
+- `references/16-advanced-shop.md` — JSON Getinfo/Prepare/Complete/Check/Compare, original-order signatures, auth/type caveats
+- `references/17-split-shop.md` — JSON Getinfo/Prepare/Confirm, allocation sums, retry identity, auth/cancellation caveats

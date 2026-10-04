@@ -17,6 +17,8 @@ description: >
 
 This skill makes you a **super-expert** on Payme Business payment integration. It covers the complete Payme ecosystem: Merchant API, Subscribe API, payment initialization, sandbox testing, fiscalization, error handling, and production deployment.
 
+Official documentation checked **2026-10-05**. These are implementation guides, not evidence of tested live payments. Provider-specific source caveats are noted in the references.
+
 ## What is Payme Business?
 
 Payme Business is a payment platform for businesses in Uzbekistan. It allows merchants to accept payments from Uzcard and HUMO bank cards online via the Payme mobile app, Telegram bots, email, or SMS. Funds are deposited to the business's bank account through Payme Business kassas (cash registers).
@@ -36,13 +38,15 @@ Only legal entities can use kassas: IP, ChP, OOO, AO, GUP, SP, NOU.
 | Sandbox checkout URL | `https://test.paycom.uz` |
 | Subscribe API (test) | `https://checkout.test.paycom.uz/api` |
 | Subscribe API (prod) | `https://checkout.paycom.uz/api` |
-| Protocol | JSON-RPC 2.0 over HTTPS (TLS v1/1.1/1.2) |
-| Currency | UZS, amounts always in **tiyin** (1 UZS = 100 tiyin) |
+| Protocol | JSON-RPC 2.0 over HTTPS; use modern TLS (1.2+), not TLS 1.0/1.1 |
+| Currency | UZS; Merchant/Subscribe API and checkout amounts use **tiyin** (1 UZS = 100 tiyin). The documented Android SDK takes a sum in UZS. |
 | Documentation | `https://developer.help.paycom.uz/` |
 
 ## Choosing the Right API
 
 Payme offers **two** independent APIs. Read `references/merchant-api.md` for Merchant API details and `references/subscribe-api.md` for Subscribe API details.
+
+**Source caveat:** Payme's live `CheckTransaction` and `CheckPerformTransaction` documentation URL slugs are swapped. Identify the API by the page's method name and request payload, not the URL; see the source mapping in `references/merchant-api.md`.
 
 ### Merchant API — "Payme handles checkout UI"
 - User clicks pay → redirected to Payme's checkout form → pays → returns to merchant site
@@ -160,13 +164,17 @@ Custom `X-Auth` header:
 | 3 | Closing transaction in merchant billing |
 | 4 | Paid successfully |
 | 5 | On hold |
+| 6 | Hold command received; contact Payme support if this state persists |
 | 20 | Paused for manual intervention |
 | 21 | Queued for cancellation |
+| 30 | Queued to close transaction in merchant billing |
 | 50 | Cancelled |
+
+Source: [Receipt states](https://developer.help.paycom.uz/metody-subscribe-api/sostoyaniya-cheka/) (checked 2026-10-05). Only state `4` means paid; queued/hold states are not payment completion.
 
 ## Fiscalization (Fiskalizatsiya)
 
-For tax compliance in Uzbekistan, you must return `detail` object in CheckPerformTransaction response:
+For fiscalization, Payme documents a `detail` object in the CheckPerformTransaction response, including the required fiscal item fields:
 
 ```json
 {
@@ -189,6 +197,8 @@ For tax compliance in Uzbekistan, you must return `detail` object in CheckPerfor
   }
 }
 ```
+
+`vat_percent: 15`, IKPU and package codes above are **example data**, not a current tax-rate default. Use the actual applicable rate and product codes for the merchant/product; do not mechanically substitute a universal rate. Source: [CheckPerformTransaction page](https://developer.help.paycom.uz/metody-merchant-api/checktransaction/) (checked 2026-10-05; URL caveat above).
 
 ### Detail Items Fields
 | Field | Type | Required | Description |
@@ -262,36 +272,77 @@ Four methods available:
 4. **QR Code** — Auto-generated QR code via JS SDK
 
 ### Method 1: POST Form
+
+Required: `merchant`, `amount` (tiyin), and the `account[...]` fields configured for the kassa. All fields below the optional-field comment may be omitted.
+
 ```html
 <form method="POST" action="https://checkout.paycom.uz">
   <input type="hidden" name="merchant" value="{MERCHANT_ID}"/>
   <input type="hidden" name="amount" value="{AMOUNT_IN_TIYIN}"/>
   <input type="hidden" name="account[order_id]" value="{ORDER_ID}"/>
+  <!-- Optional fields -->
   <input type="hidden" name="lang" value="uz"/>
-  <input type="hidden" name="callback" value="{RETURN_URL}"/>
-  <input type="hidden" name="callback_timeout" value="15"/>
-  <input type="hidden" name="description" value="{DESCRIPTION}"/>
+  <input type="hidden" name="callback" value="https://merchant.example/payme/:transaction?order=:account.order_id"/>
+  <input type="hidden" name="callback_timeout" value="15000"/>
+  <input type="hidden" name="description[ru]" value="{DESCRIPTION_RU}"/>
+  <input type="hidden" name="description[uz]" value="{DESCRIPTION_UZ}"/>
+  <input type="hidden" name="description[en]" value="{DESCRIPTION_EN}"/>
+  <input type="hidden" name="detail" value="{BASE64_JSON_DETAIL}"/>
   <button type="submit">Pay with Payme</button>
 </form>
 ```
 
+- `lang`: `ru`, `uz`, `en`; default `ru`.
+- `callback`: return URL after payment or cancellation; defaults to the request's `Referer` if omitted. Payme substitutes `:transaction` (transaction ID, or `"null"` if creation failed) and `:account.{field}`. A redirect is **not** proof of payment.
+- `callback_timeout`: delay after success, documented in milliseconds; `15000` above explicitly requests 15 seconds. The official page states a default of `15`; do not assume that means 15 seconds.
+- `description`: use a single string field or localized `description[ru]`, `description[uz]`, `description[en]` fields.
+- `detail`: **BASE64 of the UTF-8 JSON detail object itself**, not a JSON-RPC wrapper. It is optional for checkout submission; required fiscal item fields still apply when supplying fiscalization data.
+
+Runnable Node.js encoding example (no network or credentials):
+```javascript
+const assert = require('node:assert/strict');
+const detail = {
+  receipt_type: 0,
+  items: [{
+    title: 'Mahsulot — 商品', price: 500, count: 1,
+    code: '00702001001000001', vat_percent: 15, package_code: '123456'
+  }]
+};
+// VAT and product codes are example data; replace with applicable merchant/product values.
+const detailBase64 = Buffer.from(JSON.stringify(detail), 'utf8').toString('base64');
+assert.deepEqual(JSON.parse(Buffer.from(detailBase64, 'base64').toString('utf8')), detail);
+```
+
+Place `detailBase64` in the form's `detail` value. In Merchant/Subscribe JSON-RPC responses/requests, `detail` remains a JSON object, not BASE64.
+
+Source: [Checkout POST](https://developer.help.paycom.uz/initsializatsiya-platezhey/otpravka-cheka-po-metodu-post/) (checked 2026-10-05). The page calls `items` optional in one generic detail table but required for fiscalization in its example; use the fiscal required fields when fiscalizing, and confirm the kassa's setup with Payme.
+
 ### Method 2: GET URL
-Format: `https://checkout.paycom.uz/base64(params)`
-Params separated by `;`, format: `key=value`
 
-| Param | Description |
-|-------|-------------|
-| m | Merchant ID |
-| ac.{field} | Account fields |
-| a | Amount in tiyin |
-| l | Language (ru/uz/en) |
-| c | Callback URL |
-| ct | Callback timeout (ms) |
+Encode `key=value` parameters separated by `;` as BASE64, then append the encoded value to `https://checkout.paycom.uz/`. `base64(params)` in the official documentation is notation, not a literal URL path.
 
-Example:
+| Param | Use | Description |
+|-------|-----|-------------|
+| m | Basic checkout field | Merchant ID or alias |
+| ac.{field} | Basic checkout field | Account fields configured for the kassa |
+| a | Basic checkout field | Amount in tiyin |
+| l | Optional | Language (`ru`/`uz`/`en`) |
+| c | Optional | Callback URL |
+| ct | Optional | Callback timeout (ms) |
+| cr | Optional | Currency code in ISO format |
+
+The GET page does not label every field's requiredness or specify whether `cr` uses a numeric or alphabetic ISO code. Keep the basic fields above and confirm `cr`'s accepted representation for the kassa rather than guessing.
+
+```javascript
+const assert = require('node:assert/strict');
+const params = 'm=587f72c72cac0d162c722ae2;ac.order_id=197;a=500';
+const encoded = Buffer.from(params, 'utf8').toString('base64');
+const checkoutUrl = `https://checkout.paycom.uz/${encoded}`;
+assert.equal(Buffer.from(encoded, 'base64').toString('utf8'), params);
+assert.equal(checkoutUrl, 'https://checkout.paycom.uz/bT01ODdmNzJjNzJjYWMwZDE2MmM3MjJhZTI7YWMub3JkZXJfaWQ9MTk3O2E9NTAw');
 ```
-https://checkout.paycom.uz/base64(m=587f72c72cac0d162c722ae2;ac.order_id=197;a=500)
-```
+
+Source: [Checkout GET](https://developer.help.paycom.uz/initsializatsiya-platezhey/otpravka-cheka-po-metodu-get/) (checked 2026-10-05).
 
 ## Common Implementation Patterns
 
@@ -364,7 +415,7 @@ func PaymeHandler(w http.ResponseWriter, r *http.Request) {
 ## Critical Implementation Rules
 
 1. **Always return HTTP 200** — even for errors. Non-200 = RPC error -32400
-2. **Amounts are in TIYIN** — 1 UZS = 100 tiyin. 50,000 UZS = 5,000,000 tiyin
+2. **API/checkout amounts are in TIYIN** — 1 UZS = 100 tiyin. 50,000 UZS = 5,000,000 tiyin. The documented Android SDK takes a UZS sum and converts it internally; see `references/additional-reference.md`.
 3. **Timestamps are Unix milliseconds** — 13-digit numbers
 4. **Transaction IDs from Payme** are 24-char hex strings
 5. **CreateTransaction timeout** — transactions auto-cancel after 12 hours (43,200,000 ms)
@@ -379,4 +430,4 @@ func PaymeHandler(w http.ResponseWriter, r *http.Request) {
 For complete method specifications with all request/response examples:
 - `references/merchant-api.md` — Full Merchant API (6+1 methods, all request/response, error codes, implementation checklists)
 - `references/subscribe-api.md` — Full Subscribe API (cards + receipts + hold/authorize + fiscal data + receipt states)
-- `references/additional.md` — Telegram Bot, Mobile SDK (Android), QR/Button generation, CMS plugins, checkout errors, server examples, kassa ID/KEY lookup, tech support
+- `references/additional-reference.md` — Telegram Bot, Mobile SDK (Android), QR/Button generation, CMS plugins, checkout errors, server examples, kassa ID/KEY lookup, tech support

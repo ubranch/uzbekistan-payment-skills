@@ -1,6 +1,6 @@
 # Merchant API — Overview (Общее)
 
-> Source: https://docs.click.uz/merchant/
+> Source: https://docs.click.uz/merchant-api — last verified 2026-10-05.
 
 ## General Provisions
 

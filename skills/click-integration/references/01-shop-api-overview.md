@@ -1,6 +1,6 @@
 # SHOP API — Overview (Общее)
 
-> Source: https://docs.click.uz/click-api/
+> Source: https://docs.click.uz/shop-api — last verified 2026-10-05.
 
 ## General Provisions
 
