@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360"
+     role="img" aria-labelledby="t d">
+  <title id="t">uzbekistan payment skills</title>
+  <desc id="d">uzbekistan payment skills: two Claude Code skills for Payme and Click integration.
+  The same 5 000 UZS charge is "amount": 500000 in tiyin for the Payme Merchant API and
+  amount=5000.00 in so'm for the Click SHOP API.</desc>
+
+  <rect width="1200" height="360" rx="24" fill="#0A0A0A"/>
+  <rect x="0.5" y="0.5" width="1199" height="359" rx="24" fill="none" stroke="#1C1C1F"/>
+
+  <text x="72" y="88" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+        font-size="20" letter-spacing="4" fill="#33CCCC">CLAUDE CODE SKILLS · UZ</text>
+
+  <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif"
+     font-size="66" font-weight="800" letter-spacing="-2" fill="#FAFAFA">
+    <text x="68" y="168">uzbekistan</text>
+    <text x="68" y="240">payment skills</text>
+  </g>
+
+  <text x="72" y="304" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+        font-size="22" fill="#71717A">payme and click, down to the unit.</text>
+
+  <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">
+    <rect x="652" y="48" width="484" height="108" rx="14" fill="#111113" stroke="#1C1C1F"/>
+    <text x="680" y="90" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif"
+          font-size="26" font-weight="700" fill="#33CCCC">payme</text>
+    <text x="1108" y="89" font-size="18" fill="#71717A" text-anchor="end">merchant api · json-rpc</text>
+    <text x="680" y="134" font-size="24" fill="#E4E4E7">"amount": 500000</text>
+    <text x="1108" y="134" font-size="24" fill="#33CCCC" text-anchor="end">tiyin</text>
+
+    <rect x="652" y="172" width="484" height="108" rx="14" fill="#111113" stroke="#1C1C1F"/>
+    <text x="680" y="214" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif"
+          font-size="26" font-weight="700" fill="#3B9EFF">click</text>
+    <text x="1108" y="213" font-size="18" fill="#71717A" text-anchor="end">shop api · prepare/complete</text>
+    <text x="680" y="258" font-size="24" fill="#E4E4E7">amount=5000.00</text>
+    <text x="1108" y="258" font-size="24" fill="#3B9EFF" text-anchor="end">so'm</text>
+
+    <text x="680" y="304" font-size="20" fill="#A1A1AA">same 5 000 UZS. two units.</text>
+  </g>
+</svg>

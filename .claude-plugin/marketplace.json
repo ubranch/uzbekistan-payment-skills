@@ -1,20 +1,14 @@
 {
-  "name": "inspire-skills",
+  "name": "uzbekistan-payment-skills",
   "owner": {
     "name": "ubranch",
     "email": "unknown.branch@gmail.com"
   },
   "metadata": {
-    "description": "a collection of productivity skills for claude code by inspire",
-    "version": "1.0.0"
+    "description": "claude code skills for payme and click payment integration in uzbekistan",
+    "version": "2.0.0"
   },
   "plugins": [
-    {
-      "name": "agent-orchestrator",
-      "source": "./plugins/agent-orchestrator",
-      "description": "converts any task into a production-ready multi-agent orchestration prompt",
-      "version": "1.0.0"
-    },
     {
       "name": "payme-integration",
       "source": "./plugins/payme-integration",

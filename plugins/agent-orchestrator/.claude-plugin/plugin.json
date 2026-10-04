@@ -1,6 +1,0 @@
-{
-  "name": "agent-orchestrator",
-  "version": "1.0.0",
-  "description": "converts any task into a production-ready multi-agent orchestration prompt for claude code",
-  "skills": ["./skills/agent-orchestrator"]
-}
