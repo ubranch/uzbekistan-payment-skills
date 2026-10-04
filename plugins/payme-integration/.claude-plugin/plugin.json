@@ -1,6 +1,0 @@
-{
-  "name": "payme-integration",
-  "version": "1.0.0",
-  "description": "expert-level payme payment system integration skill for uzbekistan's payme business platform",
-  "skills": ["./skills/payme-integration"]
-}

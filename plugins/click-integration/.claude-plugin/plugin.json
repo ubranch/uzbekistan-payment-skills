@@ -1,6 +1,0 @@
-{
-  "name": "click-integration",
-  "version": "1.0.0",
-  "description": "expert-level click payment integration skill for uzbekistan's click superapp",
-  "skills": ["./skills/click-integration"]
-}

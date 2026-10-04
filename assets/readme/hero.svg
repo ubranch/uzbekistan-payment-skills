@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360"
      role="img" aria-labelledby="t d">
   <title id="t">uzbekistan payment skills</title>
-  <desc id="d">uzbekistan payment skills: two Claude Code skills for Payme and Click integration.
+  <desc id="d">uzbekistan payment skills: two agent skills for Payme and Click integration.
   The same 5 000 UZS charge is "amount": 500000 in tiyin for the Payme Merchant API and
   amount=5000.00 in so'm for the Click SHOP API.</desc>
 
@@ -9,7 +9,7 @@
   <rect x="0.5" y="0.5" width="1199" height="359" rx="24" fill="none" stroke="#1C1C1F"/>
 
   <text x="72" y="88" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
-        font-size="20" letter-spacing="4" fill="#33CCCC">CLAUDE CODE SKILLS · UZ</text>
+        font-size="20" letter-spacing="4" fill="#33CCCC">AGENT SKILLS · UZ</text>
 
   <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif"
      font-size="66" font-weight="800" letter-spacing="-2" fill="#FAFAFA">
